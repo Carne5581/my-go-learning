@@ -1,0 +1,26 @@
+name: Update Telegram Channel
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'README.md'
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.20'
+
+      - name: Run Notifier
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.8556952823:AAGEeEqJMh5Y3LARqYLG85zqNMZ5LpJ9RIk }}
+          TELEGRAM_CHAT_ID: ${{ secrets.8556952823 }}
+        run: go run notifier/main.go
