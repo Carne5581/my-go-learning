@@ -57,8 +57,8 @@ func drawProgressBar(done, total int) string {
 }
 
 func sendToTelegram(text string) {
-	token := os.Getenv("8556952823:AAGEeEqJMh5Y3LARqYLG85zqNMZ5LpJ9RIk")
-	chatId := os.Getenv("-1003378333826")
+	token := os.Getenv("TELEGRAM_TOKEN")
+	chatId := os.Getenv("TELEGRAM_CHAT_ID")
 
 	if token == "" || chatId == "" {
 		fmt.Println("Ошибка: Нет токена или ID чата в секретах!")
