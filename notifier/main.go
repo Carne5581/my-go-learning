@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -9,67 +10,113 @@ import (
 	"strings"
 )
 
-// Словарь: "Тема": "Код, который должен быть в файлах"
-var topics = map[string]string{
-	"Переменные (var)":    "var ",
-	"Циклы (for)":         "for ",
-	"Функции (func)":      "func ",
-	"Массивы/Слайсы ([])": "[]",
-	"Карты (map)":         "map[",
-	"Структуры (struct)":  "struct",
-	"Указатели (*)":       "*",
-	"Горутины (go)":       "go func",
-	"Интерфейсы":          "interface",
+// ---------------------------------------------------------
+// 📜 ТВОЙ УЧЕБНЫЙ ПЛАН (SYLLABUS)
+// Бот ищет "Keyword" в твоих файлах. Если находит — ставит галочку.
+// ---------------------------------------------------------
+
+type Topic struct {
+	Name    string // Красивое название темы
+	Keyword string // Код, который бот ищет в файлах
+	IsDone  bool   // (не трогать) Статус выполнения
 }
 
+var syllabus = []Topic{
+	{Name: "Переменные", Keyword: "var "},
+	{Name: "Функции", Keyword: "func "},
+	{Name: "Циклы", Keyword: "for "},
+	{Name: "Условия", Keyword: "if "},
+	{Name: "Массивы/Слайсы", Keyword: "[]"},
+	{Name: "Карты (Maps)", Keyword: "map["},
+	{Name: "Структуры", Keyword: "struct"},
+	{Name: "Методы", Keyword: ") Set"}, // Поиск методов структур
+	{Name: "Интерфейсы", Keyword: "interface"},
+	{Name: "Горутины", Keyword: "go func"},
+	{Name: "Каналы", Keyword: "chan "},
+	{Name: "Обработка ошибок", Keyword: "if err !="},
+}
+
+// ---------------------------------------------------------
+
 func main() {
-	// 1. Читаем ВЕСЬ код из всех .go файлов в одну кучу
+	// 1. Читаем весь код из файлов
 	fullCode := readAllGoFiles()
 
 	if len(fullCode) == 0 {
-		fmt.Println("Код не найден! Напиши хоть что-нибудь.")
+		fmt.Println("Код не найден! Напиши хоть строчку.")
 		return
 	}
 
-	// 2. Проверяем, какие темы встречаются в коде
-	completed := 0
-	total := len(topics)
-	var doneList []string
+	// 2. Проверяем план
+	completedCount := 0
+	var nextTarget string = "Все изучено! 🎉"
+	foundNext := false
 
-	for name, keyword := range topics {
-		if strings.Contains(fullCode, keyword) {
-			completed++
-			doneList = append(doneList, "✅ "+name)
+	// Проходим по списку и ставим галочки
+	for i := range syllabus {
+		if strings.Contains(fullCode, syllabus[i].Keyword) {
+			syllabus[i].IsDone = true
+			completedCount++
 		} else {
-			doneList = append(doneList, "⬜ "+name)
+			// Запоминаем первую невыполненную задачу как цель
+			if !foundNext {
+				nextTarget = syllabus[i].Name
+				foundNext = true
+			}
 		}
 	}
 
-	// 3. Считаем процент
-	percent := (float64(completed) / float64(total)) * 100
-	progressBar := drawProgressBar(completed, total)
+	// 3. Считаем статистику
+	total := len(syllabus)
+	percent := (float64(completedCount) / float64(total)) * 100
+	level := completedCount + 1 // Уровень героя = кол-во тем + 1
 
-	// 4. Формируем отчет
-	// strings.Join собирает список тем в красивый столбик
-	msgText := fmt.Sprintf(
-		"🧠 **Анализ кода завершен!**\n\n"+
-			"Я просканировал твои файлы.\n"+
-			"Изучено тем: %d из %d\n"+
-			"Прогресс: [%s] %.1f%%\n\n"+
-			"**Детали:**\n%s\n\n"+
-			"#golang #tracker",
-		completed, total, progressBar, percent, strings.Join(doneList, "\n"),
-	)
+	// 4. Генерируем красивое сообщение
+	message := generateFancyReport(level, percent, nextTarget, syllabus)
 
-	sendToTelegram(msgText)
+	// 5. Отправляем
+	sendToTelegram(message)
 }
 
-// Функция ходит по папкам и собирает весь текст из .go файлов
+func generateFancyReport(level int, percent float64, next string, topics []Topic) string {
+	// Рисуем бар
+	barWidth := 10
+	filled := int((percent / 100) * float64(barWidth))
+	bar := ""
+	for i := 0; i < barWidth; i++ {
+		if i < filled {
+			bar += "🟩"
+		} else {
+			bar += "⬜"
+		}
+	}
+
+	// Собираем список достижений (показываем только последние 3 или важное)
+	// Но для красоты выведем список: Сделано / Не сделано
+	listBuilder := ""
+	for _, t := range topics {
+		if t.IsDone {
+			listBuilder += "✅ " + t.Name + "\n"
+		} else {
+			listBuilder += "🔒 " + t.Name + "\n"
+		}
+	}
+
+	return fmt.Sprintf(
+		"🧙‍♂️ **GOLANG HERO REPORT**\n"+
+			"👤 **Уровень:** %d (Novice)\n"+
+			"📈 **Прогресс:** %s %.0f%%\n\n"+
+			"⚔️ **Текущая цель:** `%s`\n\n"+
+			"📜 **Карта навыков:**\n%s\n"+
+			"#golang #levelup #buildinpublic",
+		level, bar, percent, next, listBuilder,
+	)
+}
+
 func readAllGoFiles() string {
 	var allCode string
-	// Walk ищет файлы во всех папках
 	filepath.Walk(".", func(path string, info os.FileInfo, err error) error {
-		if filepath.Ext(path) == ".go" { // Если файл заканчивается на .go
+		if !info.IsDir() && strings.HasSuffix(info.Name(), ".go") {
 			data, _ := os.ReadFile(path)
 			allCode += string(data) + "\n"
 		}
@@ -78,27 +125,29 @@ func readAllGoFiles() string {
 	return allCode
 }
 
-func drawProgressBar(done, total int) string {
-	width := 10
-	filled := int((float64(done) / float64(total)) * float64(width))
-	bar := ""
-	for i := 0; i < width; i++ {
-		if i < filled {
-			bar += "▓"
-		} else {
-			bar += "░"
-		}
-	}
-	return bar
+// Структура для отправки JSON в Telegram (чтобы смайлики не ломались)
+type TGMessage struct {
+	ChatID    string `json:"chat_id"`
+	Text      string `json:"text"`
+	ParseMode string `json:"parse_mode"`
 }
 
 func sendToTelegram(text string) {
 	token := os.Getenv("TELEGRAM_TOKEN")
 	chatId := os.Getenv("TELEGRAM_CHAT_ID")
 	if token == "" || chatId == "" {
+		fmt.Println("Нет токена!")
 		return
 	}
+
 	url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", token)
-	jsonBody := []byte(fmt.Sprintf(`{"chat_id": "%s", "text": "%s", "parse_mode": "Markdown"}`, chatId, text))
+	
+	msg := TGMessage{
+		ChatID:    chatId,
+		Text:      text,
+		ParseMode: "Markdown",
+	}
+
+	jsonBody, _ := json.Marshal(msg)
 	http.Post(url, "application/json", bytes.NewBuffer(jsonBody))
 }
