@@ -1,27 +1,33 @@
-name: Update Telegram Channel
+name: Go Learning Progress Tracker
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'README.md'
-      - '**/*.go'
+      - '**/*.go'  # Следит за любыми .go файлами
+      - '!notifier/**'  # НЕ запускается при изменении самого бота
 
 jobs:
-  notify:
+  track-progress:
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout code
+      - name: 📥 Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Go
+      - name: 🔧 Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.20'
+          go-version: '1.21'
 
-      - name: Run Notifier
+      - name: 📊 Run Progress Tracker
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: go run notifier/main.go
+        run: |
+          echo "🚀 Запускаю анализатор..."
+          go run notifier/main.go
+          
+      - name: ✅ Done
+        run: echo "✨ Отчёт отправлен в Telegram!"
