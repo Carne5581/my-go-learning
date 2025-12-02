@@ -1,1 +1,51 @@
+# Compiled binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
 
+# Test binaries
+*.test
+*.out
+
+# Go workspace file
+go.work
+go.sum
+
+# IDE - VSCode
+.vscode/
+*.code-workspace
+
+# IDE - GoLand / IntelliJ
+.idea/
+*.iml
+*.iws
+
+# IDE - Vim
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log
+*.bak
+
+# Environment variables (если используются)
+.env
+.env.local
+
+# ВАЖНО: Эти файлы ДОЛЖНЫ коммититься (не добавляй их сюда!)
+# - stats.json (статистика пользователя)
+# - .completed_topics (список изученных тем)
+# - README.md (автообновляется ботом)
