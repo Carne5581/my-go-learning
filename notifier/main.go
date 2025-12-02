@@ -144,19 +144,21 @@ func main() {
 	var nextTopic string
 	xpGained := 0
 
+	// Загружаем предыдущее состояние
+	prevCompleted := loadPreviousState()
+
 	for i := range syllabus {
 		if syllabus[i].Found >= syllabus[i].MinExamples {
 			// Проверяем, была ли тема изучена ранее
 			wasCompleted := false
-			// Загружаем предыдущее состояние для проверки
-			prevStats := loadPreviousState()
-			for j := range prevStats {
-				if prevStats[j] == syllabus[i].Name {
+			for j := range prevCompleted {
+				if prevCompleted[j] == syllabus[i].Name {
 					wasCompleted = true
 					break
 				}
 			}
 			
+			// Начисляем XP только за НОВЫЕ темы
 			if !wasCompleted {
 				xpGained += syllabus[i].XPReward
 				fmt.Printf("✨ Новая тема изучена: %s (+%d XP)\n", syllabus[i].Name, syllabus[i].XPReward)
@@ -169,6 +171,13 @@ func main() {
 		} else if nextTopic == "" {
 			nextTopic = syllabus[i].Name
 		}
+	}
+	
+	// ВАЖНО: Проверяем если темы УДАЛЕНЫ (рефакторинг/удаление файлов)
+	if completed < len(prevCompleted) {
+		// Темы были удалены, но XP НЕ отнимаем (это честно заработано)
+		fmt.Printf("⚠️ Внимание: %d тем больше не обнаружено в коде\n", len(prevCompleted)-completed)
+		fmt.Println("💡 XP сохранён (рефакторинг не наказывается)")
 	}
 
 	if nextTopic == "" {
@@ -476,80 +485,97 @@ func generateReport(stats UserStats, percent float64, nextTopic string, complete
 	bar := ""
 	for i := 0; i < barWidth; i++ {
 		if i < filled {
-			bar += "🟩"
+			bar += "▰"
 		} else {
-			bar += "⬜"
+			bar += "▱"
 		}
 	}
 	
 	levelName := getLevelName(stats.Level)
 	
-	// XP прогресс
-	xpMsg := fmt.Sprintf("\n💰 **XP:** %d", stats.TotalXP)
-	if xpGained > 0 {
-		xpMsg += fmt.Sprintf(" *(+%d в этом коммите)*", xpGained)
-	}
+	// Заголовок
+	var report strings.Builder
+	report.WriteString("━━━━━━━━━━━━━━━━━━━━━━━\n")
+	report.WriteString("🎮 GO LEARNING TRACKER\n")
+	report.WriteString("━━━━━━━━━━━━━━━━━━━━━━━\n\n")
 	
-	// Streak сообщение
-	streakMsg := ""
-	if stats.CurrentStreak >= 7 {
-		streakMsg = fmt.Sprintf("\n🔥 **Streak:** %d дней подряд! ", stats.CurrentStreak)
+	// Основная инфа
+	report.WriteString(fmt.Sprintf("👤 **%s**\n", stats.Username))
+	report.WriteString(fmt.Sprintf("📊 Level %d · %s · %s\n", stats.Level, levelName, stats.League))
+	report.WriteString(fmt.Sprintf("💰 %d XP", stats.TotalXP))
+	if xpGained > 0 {
+		report.WriteString(fmt.Sprintf(" *(+%d)*", xpGained))
+	}
+	report.WriteString("\n\n")
+	
+	// Прогресс бар
+	report.WriteString(fmt.Sprintf("📈 %s %.0f%%\n", bar, percent))
+	report.WriteString(fmt.Sprintf("   %d/%d тем · %d коммитов\n", completed, total, stats.TotalCommits))
+	
+	// Streak
+	if stats.CurrentStreak >= 3 {
+		report.WriteString(fmt.Sprintf("🔥 %d дней streak", stats.CurrentStreak))
 		if stats.CurrentStreak >= 30 {
-			streakMsg += "Легенда! 🌟"
+			report.WriteString(" · Легенда!")
 		} else if stats.CurrentStreak >= 14 {
-			streakMsg += "Отлично! 💪"
-		} else {
-			streakMsg += "Так держать! 🎯"
+			report.WriteString(" · Отлично!")
+		} else if stats.CurrentStreak >= 7 {
+			report.WriteString(" · Так держать!")
 		}
+		report.WriteString("\n")
 	}
 	
 	// Штрафы
-	penaltyMsg := ""
 	if stats.PenaltyDays > 0 {
-		penaltyMsg = fmt.Sprintf("\n⚠️ **Штраф:** -%d XP за %d дней пропуска", stats.PenaltyDays*30, stats.PenaltyDays)
+		report.WriteString(fmt.Sprintf("⚠️ Штраф: -%d XP (%d дней пропуска)\n", stats.PenaltyDays*30, stats.PenaltyDays))
 	}
 	
 	// Новые достижения
-	achievementMsg := ""
 	if len(newAchievements) > 0 {
-		achievementMsg = "\n\n🎉 **НОВЫЕ ДОСТИЖЕНИЯ:**\n"
+		report.WriteString("\n🎉 **НОВОЕ:**\n")
 		for _, ach := range newAchievements {
-			achievementMsg += fmt.Sprintf("%s **%s** — %s *(+%d XP)*\n", ach.Icon, ach.Name, ach.Description, ach.XPReward)
+			report.WriteString(fmt.Sprintf("  %s %s *(+%d XP)*\n", ach.Icon, ach.Name, ach.XPReward))
 		}
 	}
 	
-	// Список тем
-	var topicList strings.Builder
-	topicList.WriteString("```\n")
+	// Следующая цель
+	report.WriteString(fmt.Sprintf("\n🎯 Следующая цель: **%s**\n", nextTopic))
 	
-	currentLvl := 0
-	for _, topic := range syllabus {
-		if topic.Level != currentLvl {
-			currentLvl = topic.Level
-			topicList.WriteString(fmt.Sprintf("\n🎯 Level %d:\n", currentLvl))
+	// Компактная карта навыков (только текущий и следующий уровень)
+	report.WriteString("\n📚 Прогресс:\n")
+	
+	showLevels := []int{stats.Level}
+	if stats.Level < 7 {
+		showLevels = append(showLevels, stats.Level+1)
+	}
+	
+	for _, lvl := range showLevels {
+		hasTopics := false
+		var levelTopics []string
+		
+		for _, topic := range syllabus {
+			if topic.Level == lvl {
+				hasTopics = true
+				if topic.Found >= topic.MinExamples {
+					levelTopics = append(levelTopics, fmt.Sprintf("✓ %s", topic.Name))
+				} else {
+					levelTopics = append(levelTopics, fmt.Sprintf("· %s", topic.Name))
+				}
+			}
 		}
 		
-		if topic.Found >= topic.MinExamples {
-			topicList.WriteString(fmt.Sprintf("✅ %s (%d)\n", topic.Name, topic.Found))
-		} else {
-			topicList.WriteString(fmt.Sprintf("🔒 %s\n", topic.Name))
+		if hasTopics {
+			report.WriteString(fmt.Sprintf("  Level %d:\n", lvl))
+			for _, topicLine := range levelTopics {
+				report.WriteString(fmt.Sprintf("    %s\n", topicLine))
+			}
 		}
 	}
-	topicList.WriteString("```")
 	
-	return fmt.Sprintf(
-		"🧙‍♂️ **GO LEARNING TRACKER**\n\n"+
-			"👤 **%s** | Level %d — %s\n"+
-			"🏆 **Лига:** %s%s\n"+
-			"📈 **Прогресс:** %s %.0f%% (%d/%d тем)\n"+
-			"💻 **Коммитов:** %d%s%s%s\n\n"+
-			"⚔️ **Следующая цель:** `%s`\n\n"+
-			"📜 **Карта навыков:**\n%s%s\n\n"+
-			"#golang #learninpublic #100daysofcode",
-		stats.Username, stats.Level, levelName, stats.League, xpMsg,
-		bar, percent, completed, total, stats.TotalCommits,
-		streakMsg, penaltyMsg, achievementMsg, nextTopic, topicList.String(), "",
-	)
+	report.WriteString("\n━━━━━━━━━━━━━━━━━━━━━━━\n")
+	report.WriteString("#golang #buildinpublic\n")
+	
+	return report.String()
 }
 
 // 🏆 Название уровня
