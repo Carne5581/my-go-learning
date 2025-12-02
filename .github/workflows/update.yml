@@ -1,33 +1,81 @@
-name: Go Learning Progress Tracker
+name: 🎮 Go Learning Tracker
 
 on:
   push:
     branches:
       - main
     paths:
-      - '**/*.go'  # Следит за любыми .go файлами
-      - '!notifier/**'  # НЕ запускается при изменении самого бота
+      - '**/*.go'          # Запускается при изменении любых .go файлов
+      - '!notifier/**'     # НЕ запускается при изменении самого бота
+      
+  schedule:
+    # Еженедельный отчёт (каждое воскресенье в 20:00 UTC)
+    - cron: '0 20 * * 0'
+    
+  workflow_dispatch:        # Возможность запустить вручную
 
 jobs:
   track-progress:
     runs-on: ubuntu-latest
     
+    permissions:
+      contents: write       # Для обновления README, stats.json и других файлов
+    
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v3
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0    # Полная история для корректного подсчёта streak
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🔧 Set up Go
-        uses: actions/setup-go@v4
+      - name: 🔧 Setup Go
+        uses: actions/setup-go@v5
         with:
           go-version: '1.21'
+          cache: true
 
       - name: 📊 Run Progress Tracker
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          LEADERBOARD_WEBHOOK: ${{ secrets.LEADERBOARD_WEBHOOK }}
+          GITHUB_ACTOR: ${{ github.actor }}
         run: |
-          echo "🚀 Запускаю анализатор..."
+          echo "🚀 Запускаю Go Learning Tracker..."
+          echo "👤 Пользователь: $GITHUB_ACTOR"
+          echo "📅 Дата: $(date)"
           go run notifier/main.go
+      
+      - name: 📝 Commit updated stats
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "Go Learning Bot 🤖"
           
-      - name: ✅ Done
-        run: echo "✨ Отчёт отправлен в Telegram!"
+          # Добавляем изменённые файлы
+          git add README.md stats.json .completed_topics 2>/dev/null || true
+          
+          # Проверяем, есть ли изменения
+          if git diff --staged --quiet; then
+            echo "✅ Нет изменений для коммита"
+          else
+            git commit -m "🤖 Auto-update: stats, badges [skip ci]"
+            git push
+            echo "✅ Статистика обновлена"
+          fi
+          
+      - name: 🎉 Success
+        if: success()
+        run: |
+          echo "════════════════════════════════════"
+          echo "✨ Анализ завершён успешно!"
+          echo "📊 Статистика обновлена"
+          echo "📱 Отчёт отправлен в Telegram"
+          echo "════════════════════════════════════"
+          
+      - name: ❌ Failure
+        if: failure()
+        run: |
+          echo "════════════════════════════════════"
+          echo "⚠️ Ошибка при выполнении"
+          echo "Проверьте логи выше ☝️"
+          echo "════════════════════════════════════"

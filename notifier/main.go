@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -18,6 +19,7 @@ type Topic struct {
 	Name        string
 	Keywords    []string
 	MinExamples int
+	XPReward    int // XP за изучение темы
 	Found       int
 }
 
@@ -27,72 +29,91 @@ type Achievement struct {
 	Name        string
 	Description string
 	Icon        string
+	XPReward    int
 	Unlocked    bool
 }
 
 // 📊 СТАТИСТИКА ПОЛЬЗОВАТЕЛЯ
 type UserStats struct {
 	Username        string
+	TotalXP         int
 	CurrentStreak   int
 	LongestStreak   int
 	TotalCommits    int
 	Level           int
+	League          string
 	CompletedTopics int
 	LastCommitDate  string
 	Achievements    []Achievement
+	PenaltyDays     int // Дни без коммитов
+}
+
+// 🌍 LEADERBOARD ENTRY (для отправки на сервер)
+type LeaderboardEntry struct {
+	Username        string `json:"username"`
+	TotalXP         int    `json:"total_xp"`
+	Level           int    `json:"level"`
+	League          string `json:"league"`
+	CompletedTopics int    `json:"completed_topics"`
+	CurrentStreak   int    `json:"current_streak"`
+	LastUpdate      string `json:"last_update"`
 }
 
 var syllabus = []Topic{
 	// LEVEL 1: Основы
-	{Level: 1, Name: "Типы данных", Keywords: []string{"int", "float", "string", "bool"}, MinExamples: 3},
-	{Level: 1, Name: "Переменные и константы", Keywords: []string{"var ", "const "}, MinExamples: 2},
+	{Level: 1, Name: "Типы данных", Keywords: []string{"int", "float", "string", "bool"}, MinExamples: 3, XPReward: 50},
+	{Level: 1, Name: "Переменные и константы", Keywords: []string{"var ", "const "}, MinExamples: 2, XPReward: 50},
 	
 	// LEVEL 2: Управление потоком
-	{Level: 2, Name: "Условия (if/else)", Keywords: []string{"if ", "else"}, MinExamples: 2},
-	{Level: 2, Name: "Циклы (for)", Keywords: []string{"for "}, MinExamples: 2},
-	{Level: 2, Name: "Switch", Keywords: []string{"switch "}, MinExamples: 1},
+	{Level: 2, Name: "Условия (if/else)", Keywords: []string{"if ", "else"}, MinExamples: 2, XPReward: 75},
+	{Level: 2, Name: "Циклы (for)", Keywords: []string{"for "}, MinExamples: 2, XPReward: 75},
+	{Level: 2, Name: "Switch", Keywords: []string{"switch "}, MinExamples: 1, XPReward: 75},
 	
 	// LEVEL 3: Коллекции
-	{Level: 3, Name: "Массивы и слайсы", Keywords: []string{"[]", "make([]", "append("}, MinExamples: 3},
-	{Level: 3, Name: "Maps (карты)", Keywords: []string{"map[", "make(map"}, MinExamples: 2},
+	{Level: 3, Name: "Массивы и слайсы", Keywords: []string{"[]", "make([]", "append("}, MinExamples: 3, XPReward: 100},
+	{Level: 3, Name: "Maps (карты)", Keywords: []string{"map[", "make(map"}, MinExamples: 2, XPReward: 100},
 	
 	// LEVEL 4: Функции
-	{Level: 4, Name: "Функции", Keywords: []string{"func "}, MinExamples: 3},
-	{Level: 4, Name: "Обработка ошибок", Keywords: []string{"error", "if err != nil"}, MinExamples: 2},
+	{Level: 4, Name: "Функции", Keywords: []string{"func "}, MinExamples: 3, XPReward: 125},
+	{Level: 4, Name: "Обработка ошибок", Keywords: []string{"error", "if err != nil"}, MinExamples: 2, XPReward: 125},
 	
 	// LEVEL 5: ООП в Go
-	{Level: 5, Name: "Структуры", Keywords: []string{"type ", "struct"}, MinExamples: 2},
-	{Level: 5, Name: "Методы", Keywords: []string{") func", "receiver"}, MinExamples: 2},
-	{Level: 5, Name: "Интерфейсы", Keywords: []string{"interface"}, MinExamples: 1},
+	{Level: 5, Name: "Структуры", Keywords: []string{"type ", "struct"}, MinExamples: 2, XPReward: 150},
+	{Level: 5, Name: "Методы", Keywords: []string{") func", "receiver"}, MinExamples: 2, XPReward: 150},
+	{Level: 5, Name: "Интерфейсы", Keywords: []string{"interface"}, MinExamples: 1, XPReward: 150},
 	
 	// LEVEL 6: Concurrency
-	{Level: 6, Name: "Горутины", Keywords: []string{"go func", "go "}, MinExamples: 1},
-	{Level: 6, Name: "Каналы", Keywords: []string{"chan ", "<-"}, MinExamples: 2},
+	{Level: 6, Name: "Горутины", Keywords: []string{"go func", "go "}, MinExamples: 1, XPReward: 200},
+	{Level: 6, Name: "Каналы", Keywords: []string{"chan ", "<-"}, MinExamples: 2, XPReward: 200},
 	
 	// LEVEL 7: Продвинутое
-	{Level: 7, Name: "HTTP сервер", Keywords: []string{"http.HandleFunc", "http.ListenAndServe"}, MinExamples: 1},
-	{Level: 7, Name: "Тестирование", Keywords: []string{"func Test", "t.Error"}, MinExamples: 1},
+	{Level: 7, Name: "HTTP сервер", Keywords: []string{"http.HandleFunc", "http.ListenAndServe"}, MinExamples: 1, XPReward: 250},
+	{Level: 7, Name: "Тестирование", Keywords: []string{"func Test", "t.Error"}, MinExamples: 1, XPReward: 250},
 }
 
 // 🏆 Список всех достижений
 var allAchievements = []Achievement{
-	{ID: "first_commit", Name: "Первый шаг", Description: "Сделал первый коммит", Icon: "🎯"},
-	{ID: "week_streak", Name: "Недельный марафон", Description: "7 дней подряд", Icon: "🔥"},
-	{ID: "month_streak", Name: "Месячная преданность", Description: "30 дней подряд", Icon: "💪"},
-	{ID: "level_3", Name: "Продвинутый новичок", Description: "Достиг 3 уровня", Icon: "⭐"},
-	{ID: "level_5", Name: "ООП мастер", Description: "Достиг 5 уровня", Icon: "🎓"},
-	{ID: "level_7", Name: "Go гуру", Description: "Достиг 7 уровня", Icon: "🧙‍♂️"},
-	{ID: "maps_master", Name: "Властелин карт", Description: "Использовал maps 10+ раз", Icon: "🗺️"},
-	{ID: "concurrency_king", Name: "Король параллелизма", Description: "Освоил горутины и каналы", Icon: "⚡"},
-	{ID: "error_handler", Name: "Укротитель ошибок", Description: "Обработал 20+ ошибок", Icon: "🛡️"},
-	{ID: "hundred_commits", Name: "Столетник", Description: "100 коммитов с Go кодом", Icon: "💯"},
+	{ID: "first_commit", Name: "Первый шаг", Description: "Сделал первый коммит", Icon: "🎯", XPReward: 100},
+	{ID: "week_streak", Name: "Огненная неделя", Description: "7 дней подряд", Icon: "🔥", XPReward: 300},
+	{ID: "month_streak", Name: "Несгибаемый", Description: "30 дней подряд", Icon: "💪", XPReward: 1000},
+	{ID: "level_3", Name: "Бронзовый воин", Description: "Достиг 3 уровня", Icon: "🥉", XPReward: 200},
+	{ID: "level_5", Name: "Серебряный мастер", Description: "Достиг 5 уровня", Icon: "🥈", XPReward: 500},
+	{ID: "level_7", Name: "Золотой гуру", Description: "Достиг 7 уровня", Icon: "🥇", XPReward: 1000},
+	{ID: "maps_master", Name: "Картограф", Description: "Использовал maps 10+ раз", Icon: "🗺️", XPReward: 250},
+	{ID: "concurrency_king", Name: "Повелитель потоков", Description: "Освоил горутины и каналы", Icon: "⚡", XPReward: 400},
+	{ID: "error_handler", Name: "Страж ошибок", Description: "Обработал 20+ ошибок", Icon: "🛡️", XPReward: 300},
+	{ID: "hundred_commits", Name: "Центурион", Description: "100 коммитов с Go кодом", Icon: "💯", XPReward: 2000},
 }
 
 func main() {
-	fmt.Println("🔍 Сканирую Go файлы...")
+	fmt.Println("🔍 Начинаю анализ кода...")
 
 	// Читаем статистику
 	stats := loadStats()
+	
+	// Проверяем штрафы за пропуски
+	applyPenalties(&stats)
+	
 	stats.TotalCommits++
 	
 	// Обновляем streak
@@ -106,19 +127,41 @@ func main() {
 
 	fmt.Printf("📂 Найдено файлов: %d\n", len(files))
 
+	// Сбрасываем счётчики перед новым анализом
+	for i := range syllabus {
+		syllabus[i].Found = 0
+	}
+
 	// Анализируем файлы
 	for _, file := range files {
 		analyzeFile(file)
 	}
 
-	// Считаем прогресс
+	// Считаем прогресс и начисляем XP
 	completed := 0
 	totalTopics := len(syllabus)
 	currentLevel := 1
 	var nextTopic string
+	xpGained := 0
 
 	for i := range syllabus {
 		if syllabus[i].Found >= syllabus[i].MinExamples {
+			// Проверяем, была ли тема изучена ранее
+			wasCompleted := false
+			// Загружаем предыдущее состояние для проверки
+			prevStats := loadPreviousState()
+			for j := range prevStats {
+				if prevStats[j] == syllabus[i].Name {
+					wasCompleted = true
+					break
+				}
+			}
+			
+			if !wasCompleted {
+				xpGained += syllabus[i].XPReward
+				fmt.Printf("✨ Новая тема изучена: %s (+%d XP)\n", syllabus[i].Name, syllabus[i].XPReward)
+			}
+			
 			completed++
 			if syllabus[i].Level > currentLevel {
 				currentLevel = syllabus[i].Level
@@ -132,19 +175,39 @@ func main() {
 		nextTopic = "Все темы изучены! 🎉"
 	}
 
+	// Начисляем XP за streak
+	if stats.CurrentStreak > 0 {
+		streakXP := stats.CurrentStreak * 20
+		xpGained += streakXP
+		fmt.Printf("🔥 Streak бонус: +%d XP (%d дней)\n", streakXP, stats.CurrentStreak)
+	}
+
+	stats.TotalXP += xpGained
 	stats.Level = currentLevel
 	stats.CompletedTopics = completed
+	
+	// Определяем лигу
+	stats.League = determineLeague(stats.Level, stats.TotalXP)
 	
 	// Проверяем достижения
 	newAchievements := checkAchievements(&stats)
 	
+	// Начисляем XP за новые достижения
+	for _, ach := range newAchievements {
+		stats.TotalXP += ach.XPReward
+		fmt.Printf("🏆 Достижение разблокировано: %s (+%d XP)\n", ach.Name, ach.XPReward)
+	}
+	
 	percent := (float64(completed) / float64(totalTopics)) * 100
+	
+	// Сохраняем текущее состояние
+	saveCurrentState(completed, &stats)
 	
 	// Сохраняем статистику
 	saveStats(stats)
 	
 	// Генерируем отчёт
-	message := generateReport(stats, percent, nextTopic, completed, totalTopics, newAchievements)
+	message := generateReport(stats, percent, nextTopic, completed, totalTopics, newAchievements, xpGained)
 	
 	fmt.Println("\n" + message)
 	
@@ -154,22 +217,26 @@ func main() {
 	// Обновляем badges
 	updateBadges(stats, percent)
 	
-	// Обновляем leaderboard
-	updateLeaderboard(stats)
+	// Отправляем на центральный leaderboard
+	sendToLeaderboard(stats)
+	
+	fmt.Println("\n✅ Анализ завершён!")
 }
 
 // 📊 Загрузка статистики
 func loadStats() UserStats {
 	data, err := os.ReadFile("stats.json")
 	if err != nil {
-		// Первый запуск
 		return UserStats{
 			Username:       getUsername(),
+			TotalXP:        0,
 			CurrentStreak:  0,
 			LongestStreak:  0,
 			TotalCommits:   0,
+			League:         "🥉 Bronze",
 			LastCommitDate: "",
 			Achievements:   []Achievement{},
+			PenaltyDays:    0,
 		}
 	}
 	
@@ -184,12 +251,60 @@ func saveStats(stats UserStats) {
 	os.WriteFile("stats.json", data, 0644)
 }
 
+// 📝 Загрузка предыдущего состояния
+func loadPreviousState() []string {
+	data, err := os.ReadFile(".completed_topics")
+	if err != nil {
+		return []string{}
+	}
+	
+	var topics []string
+	json.Unmarshal(data, &topics)
+	return topics
+}
+
+// 💾 Сохранение текущего состояния
+func saveCurrentState(completed int, stats *UserStats) {
+	var completedTopics []string
+	for _, topic := range syllabus {
+		if topic.Found >= topic.MinExamples {
+			completedTopics = append(completedTopics, topic.Name)
+		}
+	}
+	
+	data, _ := json.Marshal(completedTopics)
+	os.WriteFile(".completed_topics", data, 0644)
+}
+
+// ⚠️ Применение штрафов за пропуски
+func applyPenalties(stats *UserStats) {
+	if stats.LastCommitDate == "" {
+		return
+	}
+	
+	lastDate, _ := time.Parse("2006-01-02", stats.LastCommitDate)
+	daysSince := int(time.Since(lastDate).Hours() / 24)
+	
+	if daysSince > 1 {
+		stats.PenaltyDays = daysSince - 1
+		penalty := stats.PenaltyDays * 30 // 30 XP за каждый пропущенный день
+		stats.TotalXP -= penalty
+		
+		if stats.TotalXP < 0 {
+			stats.TotalXP = 0
+		}
+		
+		fmt.Printf("⚠️ Штраф: -%d XP за %d дней без коммитов\n", penalty, stats.PenaltyDays)
+	} else {
+		stats.PenaltyDays = 0
+	}
+}
+
 // 🔥 Обновление streak
 func updateStreak(stats *UserStats) {
 	today := time.Now().Format("2006-01-02")
 	
 	if stats.LastCommitDate == "" {
-		// Первый коммит
 		stats.CurrentStreak = 1
 		stats.LongestStreak = 1
 	} else {
@@ -197,19 +312,28 @@ func updateStreak(stats *UserStats) {
 		daysDiff := int(time.Since(lastDate).Hours() / 24)
 		
 		if daysDiff == 1 {
-			// Следующий день подряд
 			stats.CurrentStreak++
 			if stats.CurrentStreak > stats.LongestStreak {
 				stats.LongestStreak = stats.CurrentStreak
 			}
 		} else if daysDiff > 1 {
-			// Прервали streak
 			stats.CurrentStreak = 1
 		}
-		// Если daysDiff == 0, то это коммит в тот же день (не меняем streak)
 	}
 	
 	stats.LastCommitDate = today
+}
+
+// 🏆 Определение лиги
+func determineLeague(level, xp int) string {
+	if level >= 7 || xp >= 3000 {
+		return "💎 Diamond"
+	} else if level >= 5 || xp >= 2000 {
+		return "🥇 Gold"
+	} else if level >= 3 || xp >= 1000 {
+		return "🥈 Silver"
+	}
+	return "🥉 Bronze"
 }
 
 // 🏆 Проверка достижений
@@ -217,7 +341,6 @@ func checkAchievements(stats *UserStats) []Achievement {
 	var newAchievements []Achievement
 	
 	for _, achievement := range allAchievements {
-		// Проверяем, не разблокировано ли уже
 		alreadyUnlocked := false
 		for _, unlocked := range stats.Achievements {
 			if unlocked.ID == achievement.ID {
@@ -230,7 +353,6 @@ func checkAchievements(stats *UserStats) []Achievement {
 			continue
 		}
 		
-		// Проверяем условия
 		unlocked := false
 		
 		switch achievement.ID {
@@ -285,7 +407,6 @@ func checkAchievements(stats *UserStats) []Achievement {
 
 // 👤 Получение username
 func getUsername() string {
-	// Пробуем получить из git config
 	username := os.Getenv("GITHUB_ACTOR")
 	if username == "" {
 		username = "GoLearner"
@@ -300,7 +421,7 @@ func findGoFiles() []string {
 		if err != nil {
 			return nil
 		}
-		if strings.Contains(path, "notifier") {
+		if strings.Contains(path, "notifier") || strings.Contains(path, ".git") {
 			return nil
 		}
 		if !info.IsDir() && strings.HasSuffix(info.Name(), ".go") {
@@ -328,7 +449,7 @@ func analyzeFile(filename string) {
 			count := strings.Count(code, keyword)
 			syllabus[i].Found += count
 			if count > 0 {
-				fmt.Printf("  ✓ Найдено '%s': %d раз\n", keyword, count)
+				fmt.Printf("  ✓ '%s': %d раз\n", keyword, count)
 			}
 		}
 	}
@@ -349,8 +470,7 @@ func removeComments(code string) string {
 }
 
 // 📝 Генерация отчёта
-func generateReport(stats UserStats, percent float64, nextTopic string, completed, total int, newAchievements []Achievement) string {
-	// Прогресс бар
+func generateReport(stats UserStats, percent float64, nextTopic string, completed, total int, newAchievements []Achievement, xpGained int) string {
 	barWidth := 10
 	filled := int((percent / 100) * float64(barWidth))
 	bar := ""
@@ -364,17 +484,29 @@ func generateReport(stats UserStats, percent float64, nextTopic string, complete
 	
 	levelName := getLevelName(stats.Level)
 	
+	// XP прогресс
+	xpMsg := fmt.Sprintf("\n💰 **XP:** %d", stats.TotalXP)
+	if xpGained > 0 {
+		xpMsg += fmt.Sprintf(" *(+%d в этом коммите)*", xpGained)
+	}
+	
 	// Streak сообщение
 	streakMsg := ""
 	if stats.CurrentStreak >= 7 {
 		streakMsg = fmt.Sprintf("\n🔥 **Streak:** %d дней подряд! ", stats.CurrentStreak)
 		if stats.CurrentStreak >= 30 {
-			streakMsg += "Невероятно! 💪"
+			streakMsg += "Легенда! 🌟"
 		} else if stats.CurrentStreak >= 14 {
-			streakMsg += "Отлично! 👏"
+			streakMsg += "Отлично! 💪"
 		} else {
-			streakMsg += "Продолжай! 🎯"
+			streakMsg += "Так держать! 🎯"
 		}
+	}
+	
+	// Штрафы
+	penaltyMsg := ""
+	if stats.PenaltyDays > 0 {
+		penaltyMsg = fmt.Sprintf("\n⚠️ **Штраф:** -%d XP за %d дней пропуска", stats.PenaltyDays*30, stats.PenaltyDays)
 	}
 	
 	// Новые достижения
@@ -382,7 +514,7 @@ func generateReport(stats UserStats, percent float64, nextTopic string, complete
 	if len(newAchievements) > 0 {
 		achievementMsg = "\n\n🎉 **НОВЫЕ ДОСТИЖЕНИЯ:**\n"
 		for _, ach := range newAchievements {
-			achievementMsg += fmt.Sprintf("%s **%s** — %s\n", ach.Icon, ach.Name, ach.Description)
+			achievementMsg += fmt.Sprintf("%s **%s** — %s *(+%d XP)*\n", ach.Icon, ach.Name, ach.Description, ach.XPReward)
 		}
 	}
 	
@@ -405,31 +537,18 @@ func generateReport(stats UserStats, percent float64, nextTopic string, complete
 	}
 	topicList.WriteString("```")
 	
-	// Еженедельная статистика (если воскресенье)
-	weeklyMsg := ""
-	if time.Now().Weekday() == time.Sunday {
-		weeklyMsg = fmt.Sprintf(
-			"\n\n📅 **Недельная сводка:**\n"+
-			"• Всего коммитов: %d\n"+
-			"• Самый длинный streak: %d дней\n"+
-			"• Достижений: %d/%d",
-			stats.TotalCommits,
-			stats.LongestStreak,
-			len(stats.Achievements),
-			len(allAchievements),
-		)
-	}
-	
 	return fmt.Sprintf(
 		"🧙‍♂️ **GO LEARNING TRACKER**\n\n"+
 			"👤 **%s** | Level %d — %s\n"+
+			"🏆 **Лига:** %s%s\n"+
 			"📈 **Прогресс:** %s %.0f%% (%d/%d тем)\n"+
-			"💻 **Всего коммитов:** %d%s%s\n\n"+
+			"💻 **Коммитов:** %d%s%s%s\n\n"+
 			"⚔️ **Следующая цель:** `%s`\n\n"+
 			"📜 **Карта навыков:**\n%s%s\n\n"+
 			"#golang #learninpublic #100daysofcode",
-		stats.Username, stats.Level, levelName, bar, percent, completed, total,
-		stats.TotalCommits, streakMsg, achievementMsg, nextTopic, topicList.String(), weeklyMsg,
+		stats.Username, stats.Level, levelName, stats.League, xpMsg,
+		bar, percent, completed, total, stats.TotalCommits,
+		streakMsg, penaltyMsg, achievementMsg, nextTopic, topicList.String(), "",
 	)
 }
 
@@ -450,15 +569,14 @@ func getLevelName(level int) string {
 	return "Новичок"
 }
 
-// 🎨 Обновление badges в README
+// 🎨 Обновление badges
 func updateBadges(stats UserStats, percent float64) {
-	// Генерируем Shield.io badges
 	levelBadge := fmt.Sprintf("![Level](https://img.shields.io/badge/Level-%d-blue)", stats.Level)
 	progressBadge := fmt.Sprintf("![Progress](https://img.shields.io/badge/Progress-%.0f%%25-brightgreen)", percent)
 	streakBadge := fmt.Sprintf("![Streak](https://img.shields.io/badge/Streak-%d_days-orange)", stats.CurrentStreak)
-	commitsBadge := fmt.Sprintf("![Commits](https://img.shields.io/badge/Commits-%d-purple)", stats.TotalCommits)
+	xpBadge := fmt.Sprintf("![XP](https://img.shields.io/badge/XP-%d-purple)", stats.TotalXP)
+	leagueBadge := fmt.Sprintf("![League](https://img.shields.io/badge/League-%s-gold)", strings.ReplaceAll(stats.League, " ", "_"))
 	
-	// Читаем README
 	readmeContent, err := os.ReadFile("README.md")
 	if err != nil {
 		return
@@ -466,19 +584,15 @@ func updateBadges(stats UserStats, percent float64) {
 	
 	content := string(readmeContent)
 	
-	// Ищем секцию для замены
 	badgesSection := fmt.Sprintf(
-		"%s\n%s\n%s\n%s",
-		levelBadge, progressBadge, streakBadge, commitsBadge,
+		"%s\n%s\n%s\n%s\n%s",
+		levelBadge, progressBadge, streakBadge, xpBadge, leagueBadge,
 	)
 	
-	// Заменяем или добавляем badges после заголовка
 	if strings.Contains(content, "![Level]") {
-		// Заменяем существующие badges
-		re := regexp.MustCompile(`!\[Level\].*\n!\[Progress\].*\n!\[Streak\].*\n!\[Commits\].*`)
+		re := regexp.MustCompile(`!\[Level\].*\n!\[Progress\].*\n!\[Streak\].*\n!\[XP\].*\n!\[League\].*`)
 		content = re.ReplaceAllString(content, badgesSection)
 	} else {
-		// Добавляем после первого заголовка
 		lines := strings.Split(content, "\n")
 		if len(lines) > 0 {
 			lines = append(lines[:1], append([]string{"", badgesSection, ""}, lines[1:]...)...)
@@ -487,79 +601,42 @@ func updateBadges(stats UserStats, percent float64) {
 	}
 	
 	os.WriteFile("README.md", []byte(content), 0644)
-	fmt.Println("✅ Badges обновлены в README.md")
+	fmt.Println("✅ Badges обновлены")
 }
 
-// 📊 Обновление leaderboard
-func updateLeaderboard(stats UserStats) {
-	// Читаем существующий leaderboard
-	type LeaderboardEntry struct {
-		Username        string
-		Level           int
-		CompletedTopics int
-		TotalCommits    int
-		LongestStreak   int
+// 🌍 Отправка на центральный leaderboard
+func sendToLeaderboard(stats UserStats) {
+	webhookURL := os.Getenv("LEADERBOARD_WEBHOOK")
+	if webhookURL == "" {
+		fmt.Println("⚠️ LEADERBOARD_WEBHOOK не настроен (пропускаю)")
+		return
 	}
 	
-	var leaderboard []LeaderboardEntry
-	data, err := os.ReadFile("LEADERBOARD.md")
-	if err == nil {
-		// Парсим существующий leaderboard (упрощённо)
-		json.Unmarshal(data, &leaderboard)
+	entry := LeaderboardEntry{
+		Username:        stats.Username,
+		TotalXP:         stats.TotalXP,
+		Level:           stats.Level,
+		League:          stats.League,
+		CompletedTopics: stats.CompletedTopics,
+		CurrentStreak:   stats.CurrentStreak,
+		LastUpdate:      time.Now().Format("2006-01-02 15:04:05"),
 	}
 	
-	// Обновляем/добавляем текущего пользователя
-	found := false
-	for i := range leaderboard {
-		if leaderboard[i].Username == stats.Username {
-			leaderboard[i].Level = stats.Level
-			leaderboard[i].CompletedTopics = stats.CompletedTopics
-			leaderboard[i].TotalCommits = stats.TotalCommits
-			leaderboard[i].LongestStreak = stats.LongestStreak
-			found = true
-			break
-		}
+	jsonData, _ := json.Marshal(entry)
+	resp, err := http.Post(webhookURL, "application/json", bytes.NewBuffer(jsonData))
+	
+	if err != nil {
+		fmt.Printf("⚠️ Ошибка отправки на leaderboard: %v\n", err)
+		return
 	}
+	defer resp.Body.Close()
 	
-	if !found {
-		leaderboard = append(leaderboard, LeaderboardEntry{
-			Username:        stats.Username,
-			Level:           stats.Level,
-			CompletedTopics: stats.CompletedTopics,
-			TotalCommits:    stats.TotalCommits,
-			LongestStreak:   stats.LongestStreak,
-		})
+	if resp.StatusCode == 200 {
+		fmt.Println("✅ Данные отправлены на leaderboard")
+	} else {
+		body, _ := io.ReadAll(resp.Body)
+		fmt.Printf("⚠️ Leaderboard ответил %d: %s\n", resp.StatusCode, string(body))
 	}
-	
-	// Сортируем по уровню, потом по коммитам
-	// (упрощённая сортировка - в реальности нужно использовать sort.Slice)
-	
-	// Генерируем Markdown таблицу
-	var mdContent strings.Builder
-	mdContent.WriteString("# 🏆 Go Learning Leaderboard\n\n")
-	mdContent.WriteString("Топ учеников Go со всего мира!\n\n")
-	mdContent.WriteString("| 🏅 | Имя | Level | Темы | Коммиты | Longest Streak |\n")
-	mdContent.WriteString("|---|-----|-------|------|---------|----------------|\n")
-	
-	for i, entry := range leaderboard {
-		medal := "🥉"
-		if i == 0 {
-			medal = "🥇"
-		} else if i == 1 {
-			medal = "🥈"
-		}
-		
-		mdContent.WriteString(fmt.Sprintf(
-			"| %s | %s | %d | %d/16 | %d | %d days |\n",
-			medal, entry.Username, entry.Level, entry.CompletedTopics,
-			entry.TotalCommits, entry.LongestStreak,
-		))
-	}
-	
-	mdContent.WriteString("\n---\n*Обновлено автоматически*")
-	
-	os.WriteFile("LEADERBOARD.md", []byte(mdContent.String()), 0644)
-	fmt.Println("✅ Leaderboard обновлён")
 }
 
 // 📤 Отправка в Telegram
@@ -574,7 +651,7 @@ func sendToTelegram(text string) {
 	chatId := os.Getenv("TELEGRAM_CHAT_ID")
 	
 	if token == "" || chatId == "" {
-		fmt.Println("⚠️ Telegram токены не найдены (локальный тест)")
+		fmt.Println("⚠️ Telegram токены не найдены")
 		return
 	}
 
