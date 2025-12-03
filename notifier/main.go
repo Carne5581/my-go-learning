@@ -493,106 +493,96 @@ func generateReport(stats UserStats, percent float64, nextTopic string, complete
 	
 	levelName := getLevelName(stats.Level)
 	
-	// Заголовок
+	// Основной отчёт
 	var report strings.Builder
-	report.WriteString("━━━━━━━━━━━━━━━━━━━━━━━\n")
-	report.WriteString("🎮 GO LEARNING TRACKER\n")
-	report.WriteString("━━━━━━━━━━━━━━━━━━━━━━━\n\n")
+	report.WriteString("🎮 GO LEARNING TRACKER\n\n")
 	
-	// Основная инфа
-	report.WriteString(fmt.Sprintf("👤 **%s**\n", stats.Username))
-	report.WriteString(fmt.Sprintf("📊 Level %d · %s · %s\n", stats.Level, levelName, stats.League))
-	report.WriteString(fmt.Sprintf("💰 %d XP", stats.TotalXP))
+	// Информация о пользователе
+	report.WriteString(fmt.Sprintf("👤 %s\n", stats.Username))
+	report.WriteString(fmt.Sprintf("⚡ Level %d · %s · %d XP", stats.Level, levelName, stats.TotalXP))
 	if xpGained > 0 {
 		report.WriteString(fmt.Sprintf(" *(+%d)*", xpGained))
 	}
-	report.WriteString("\n\n")
+	report.WriteString("\n")
+	report.WriteString(fmt.Sprintf("🛡 %s\n\n", stats.League))
 	
 	// Прогресс бар
-	report.WriteString(fmt.Sprintf("📈 %s %.0f%%\n", bar, percent))
-	report.WriteString(fmt.Sprintf("   %d/%d тем · %d коммитов\n", completed, total, stats.TotalCommits))
+	report.WriteString(fmt.Sprintf("%s %.0f%%\n", bar, percent))
+	report.WriteString(fmt.Sprintf("%d/%d тем · %d коммитов\n", completed, total, stats.TotalCommits))
 	
-	// Streak
+	// Streak (если >= 3 дней)
 	if stats.CurrentStreak >= 3 {
-		report.WriteString(fmt.Sprintf("🔥 %d дней streak", stats.CurrentStreak))
+		report.WriteString(fmt.Sprintf("\n🔥 Огненная серия: %d дней подряд", stats.CurrentStreak))
 		if stats.CurrentStreak >= 30 {
-			report.WriteString(" · Легенда!")
+			report.WriteString(" — Легенда!")
 		} else if stats.CurrentStreak >= 14 {
-			report.WriteString(" · Отлично!")
+			report.WriteString(" — Невероятно!")
 		} else if stats.CurrentStreak >= 7 {
-			report.WriteString(" · Так держать!")
+			report.WriteString(" — Отлично!")
 		}
 		report.WriteString("\n")
 	}
 	
 	// Штрафы
 	if stats.PenaltyDays > 0 {
-		report.WriteString(fmt.Sprintf("⚠️ Штраф: -%d XP (%d дней пропуска)\n", stats.PenaltyDays*30, stats.PenaltyDays))
+		report.WriteString(fmt.Sprintf("\n⚠️ Потеря концентрации: -%d XP (%d дней без практики)\n", stats.PenaltyDays*30, stats.PenaltyDays))
 	}
 	
 	// Новые достижения
 	if len(newAchievements) > 0 {
-		report.WriteString("\n🎉 **НОВОЕ:**\n")
+		report.WriteString("\n🎉 Новое достижение разблокировано!\n")
 		for _, ach := range newAchievements {
-			report.WriteString(fmt.Sprintf("  %s %s *(+%d XP)*\n", ach.Icon, ach.Name, ach.XPReward))
+			report.WriteString(fmt.Sprintf("%s %s *(+%d XP)*\n", ach.Icon, ach.Name, ach.XPReward))
 		}
 	}
 	
 	// Следующая цель
-	report.WriteString(fmt.Sprintf("\n🎯 Следующая цель: **%s**\n", nextTopic))
+	report.WriteString(fmt.Sprintf("\n🎯 Следующая цель: %s\n", nextTopic))
 	
-	// Компактная карта навыков (только текущий и следующий уровень)
-	report.WriteString("\n📚 Прогресс:\n")
+	// Изученные навыки (только текущий и следующий уровень)
+	report.WriteString("\nИзучено:\n")
 	
 	showLevels := []int{stats.Level}
 	if stats.Level < 7 {
 		showLevels = append(showLevels, stats.Level+1)
 	}
 	
+	shownCount := 0
+	maxShow := 5 // Показываем максимум 5 тем
+	
 	for _, lvl := range showLevels {
-		hasTopics := false
-		var levelTopics []string
-		
 		for _, topic := range syllabus {
-			if topic.Level == lvl {
-				hasTopics = true
+			if topic.Level == lvl && shownCount < maxShow {
 				if topic.Found >= topic.MinExamples {
-					levelTopics = append(levelTopics, fmt.Sprintf("✓ %s", topic.Name))
+					report.WriteString(fmt.Sprintf("  ✓ %s\n", topic.Name))
 				} else {
-					levelTopics = append(levelTopics, fmt.Sprintf("· %s", topic.Name))
+					report.WriteString(fmt.Sprintf("  → %s\n", topic.Name))
 				}
-			}
-		}
-		
-		if hasTopics {
-			report.WriteString(fmt.Sprintf("  Level %d:\n", lvl))
-			for _, topicLine := range levelTopics {
-				report.WriteString(fmt.Sprintf("    %s\n", topicLine))
+				shownCount++
 			}
 		}
 	}
 	
-	report.WriteString("\n━━━━━━━━━━━━━━━━━━━━━━━\n")
-	report.WriteString("#golang #buildinpublic\n")
+	report.WriteString("\n#golang #buildinpublic\n")
 	
 	return report.String()
 }
 
-// 🏆 Название уровня
+// 🏆 Название уровня (Фэнтези стиль)
 func getLevelName(level int) string {
 	names := map[int]string{
-		1: "Новичок 🌱",
-		2: "Ученик 📚",
-		3: "Практикант 🔧",
-		4: "Разработчик 💻",
-		5: "Мастер 🎯",
-		6: "Эксперт ⚡",
-		7: "Гуру 🧙‍♂️",
+		1: "Новобранец 🌱",
+		2: "Подмастерье ⚔️",
+		3: "Искатель 🗡️",
+		4: "Следопыт 🏹",
+		5: "Чародей 🔮",
+		6: "Архимаг ⚡",
+		7: "Великий Магистр 👑",
 	}
 	if name, ok := names[level]; ok {
 		return name
 	}
-	return "Новичок"
+	return "Новобранец 🌱"
 }
 
 // 🎨 Обновление badges
