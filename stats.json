@@ -1,13 +1,13 @@
 {
   "Username": "Carne5581",
-  "TotalXP": 120,
-  "CurrentStreak": 1,
-  "LongestStreak": 1,
-  "TotalCommits": 1,
-  "Level": 1,
+  "TotalXP": 360,
+  "CurrentStreak": 2,
+  "LongestStreak": 2,
+  "TotalCommits": 2,
+  "Level": 2,
   "League": "🥉 Bronze",
-  "CompletedTopics": 0,
-  "LastCommitDate": "2025-12-02",
+  "CompletedTopics": 3,
+  "LastCommitDate": "2025-12-03",
   "Achievements": [
     {
       "ID": "first_commit",
