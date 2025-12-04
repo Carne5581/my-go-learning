@@ -66,7 +66,7 @@ func main() {
 	// Внимание на экран! Изменился ли баланс в main?
 	fmt.Println("Мой баланс ПОСЛЕ функции:", clientBalance)
 
-	weMoney := 4999
+	weMoney := 5000
 	euros := convertToEUR(weMoney)
 	fmt.Printf("У меня было %d руб, стало %d евро.\n", weMoney, euros)
 }
