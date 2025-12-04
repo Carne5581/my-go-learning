@@ -1,10 +1,10 @@
 # 🎮 Go Learning Tracker Bot
 
-![Level](https://img.shields.io/badge/Level-1-blue)
-![Progress](https://img.shields.io/badge/Progress-0%25-brightgreen)
-![Streak](https://img.shields.io/badge/Streak-0_days-orange)
-![XP](https://img.shields.io/badge/XP-0-purple)
-![League](https://img.shields.io/badge/League-🥉_Bronze-gold)
+![Level](https://img.shields.io/badge/Level-4-blue)
+![Progress](https://img.shields.io/badge/Progress-25%25-brightgreen)
+![Streak](https://img.shields.io/badge/Streak-3_days-orange)
+![XP](https://img.shields.io/badge/XP-785-purple)
+![League](https://img.shields.io/badge/League-🥈_Silver-gold)
 
 > **Твой личный тренер для изучения Go с геймификацией, XP, достижениями и конкуренцией!**
 
