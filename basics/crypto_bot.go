@@ -50,7 +50,7 @@ func main() {
 	var sellSignal int = 8400
 
 	// 2. Запускаем цикл на 10 дней
-	for day := 1; day <= 9; day++ {
+	for day := 1; day <= 10; day++ {
 		// Получаем цену на сегодня
 		currentPrice := getRandomPrcdice()
 		fmt.Printf("\n[ДЕНЬ %d] Цена Bitcoin: $%d\n", day, currentPrice)
