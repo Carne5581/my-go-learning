@@ -599,10 +599,9 @@ func addLeaderboardInfo(message string, position, totalUsers, xpToNext int) stri
 
 	leaderboardInfo.WriteString(fmt.Sprintf("🏆 Твоя позиция: %s %d-й из %d\n", medal, position, totalUsers))
 
+	// Показываем XP до следующего места (только если не первый)
 	if position > 1 && xpToNext > 0 {
 		leaderboardInfo.WriteString(fmt.Sprintf("👆 До %d-го места: %d XP\n", position-1, xpToNext))
-	} else if position == 1 {
-		leaderboardInfo.WriteString("👑 Ты лидер! Держись!\n")
 	}
 
 	leaderboardInfo.WriteString("\n#golang #buildinpublic\n")
