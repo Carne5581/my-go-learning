@@ -47,7 +47,7 @@ func main() {
 	var walletUSD float64 = 1000.0 // Начальный капитал
 	var walletBTC float64 = 0.0    // Биткоинов пока нет
 	var buySignal int = 8000
-	var sellSignal int = 8500
+	var sellSignal int = 8400
 
 	// 2. Запускаем цикл на 10 дней
 	for day := 1; day <= 10; day++ {
@@ -104,6 +104,6 @@ func main() {
 	if profit > 0 {
 		fmt.Printf("ПРИБЫЛЬ: +$%.2f (Успех!)\n", profit)
 	} else {
-		fmt.Printf("УБЫТТОК: $%.2f (Рынок жесток...)\n", profit)
+		fmt.Printf("УБЫТОК: $%.2f (Рынок жесток...)\n", profit)
 	}
 }
