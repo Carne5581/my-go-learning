@@ -1,0 +1,22 @@
+{
+  "Username": "Carne5581",
+  "TotalXP": 120,
+  "CurrentStreak": 1,
+  "LongestStreak": 1,
+  "TotalCommits": 1,
+  "Level": 1,
+  "League": "🥉 Bronze",
+  "CompletedTopics": 0,
+  "LastCommitDate": "2025-12-06",
+  "Achievements": [
+    {
+      "ID": "first_commit",
+      "Name": "Первый шаг",
+      "Description": "Сделал первый коммит",
+      "Icon": "🎯",
+      "XPReward": 100,
+      "Unlocked": false
+    }
+  ],
+  "PenaltyDays": 0
+}
