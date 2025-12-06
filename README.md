@@ -3,7 +3,7 @@
 ![Level](https://img.shields.io/badge/Level-4-blue)
 ![Progress](https://img.shields.io/badge/Progress-19%25-brightgreen)
 ![Streak](https://img.shields.io/badge/Streak-1_days-orange)
-![XP](https://img.shields.io/badge/XP-600-purple)
+![XP](https://img.shields.io/badge/XP-620-purple)
 ![League](https://img.shields.io/badge/League-🥈_Silver-gold)
 
 > **Твой личный тренер для изучения Go с геймификацией, XP, достижениями и конкуренцией!**
