@@ -1,13 +1,13 @@
 {
   "Username": "Carne5581",
-  "TotalXP": 265,
+  "TotalXP": 580,
   "CurrentStreak": 1,
   "LongestStreak": 1,
-  "TotalCommits": 2,
-  "Level": 2,
-  "League": "🥉 Bronze",
-  "CompletedTopics": 2,
-  "LastCommitDate": "2025-12-04",
+  "TotalCommits": 3,
+  "Level": 4,
+  "League": "🥈 Silver",
+  "CompletedTopics": 3,
+  "LastCommitDate": "2025-12-06",
   "Achievements": [
     {
       "ID": "first_commit",
@@ -16,7 +16,15 @@
       "Icon": "🎯",
       "XPReward": 100,
       "Unlocked": false
+    },
+    {
+      "ID": "level_3",
+      "Name": "Бронзовый воин",
+      "Description": "Достиг 3 уровня",
+      "Icon": "🥉",
+      "XPReward": 200,
+      "Unlocked": false
     }
   ],
-  "PenaltyDays": 0
+  "PenaltyDays": 1
 }
