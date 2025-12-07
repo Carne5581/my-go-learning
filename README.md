@@ -16,6 +16,15 @@
 
 ## 🎯 Что это?
 
+### 📱 Отчёты в Telegram
+![Telegram Report](screenshots/telegram-report.png)
+
+### 🤖 Автоматизация через GitHub Actions
+![GitHub Actions](screenshots/github-actions.png)
+
+### 🏆 Live Leaderboard
+![Leaderboard](screenshots/leaderboard.png)
+
 **Go Learning Tracker** — это автоматическая система отслеживания прогресса изучения Go с элементами игры:
 
 ### ✨ Основные фичи:
