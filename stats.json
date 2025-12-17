@@ -1,13 +1,13 @@
 {
   "Username": "Carne5581",
-  "TotalXP": 1510,
-  "CurrentStreak": 3,
+  "TotalXP": 2265,
+  "CurrentStreak": 4,
   "LongestStreak": 5,
-  "TotalCommits": 13,
+  "TotalCommits": 14,
   "Level": 6,
   "League": "🥇 Gold",
-  "CompletedTopics": 6,
-  "LastCommitDate": "2025-12-16",
+  "CompletedTopics": 8,
+  "LastCommitDate": "2025-12-17",
   "Achievements": [
     {
       "ID": "first_commit",
@@ -23,6 +23,14 @@
       "Description": "Достиг 3 уровня",
       "Icon": "🥉",
       "XPReward": 200,
+      "Unlocked": false
+    },
+    {
+      "ID": "concurrency_king",
+      "Name": "Повелитель потоков",
+      "Description": "Освоил горутины и каналы",
+      "Icon": "⚡",
+      "XPReward": 400,
       "Unlocked": false
     }
   ],
