@@ -1,9 +1,9 @@
 {
   "Username": "Carne5581",
-  "TotalXP": 2195,
+  "TotalXP": 2215,
   "CurrentStreak": 1,
   "LongestStreak": 5,
-  "TotalCommits": 15,
+  "TotalCommits": 16,
   "Level": 6,
   "League": "🥇 Gold",
   "CompletedTopics": 8,
@@ -34,5 +34,5 @@
       "Unlocked": false
     }
   ],
-  "PenaltyDays": 3
+  "PenaltyDays": 0
 }
