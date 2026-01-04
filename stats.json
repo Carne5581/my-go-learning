@@ -1,13 +1,13 @@
 {
   "Username": "Carne5581",
-  "TotalXP": 2155,
+  "TotalXP": 1995,
   "CurrentStreak": 1,
   "LongestStreak": 5,
-  "TotalCommits": 18,
+  "TotalCommits": 19,
   "Level": 6,
   "League": "🥇 Gold",
   "CompletedTopics": 9,
-  "LastCommitDate": "2025-12-28",
+  "LastCommitDate": "2026-01-04",
   "Achievements": [
     {
       "ID": "first_commit",
@@ -34,5 +34,5 @@
       "Unlocked": false
     }
   ],
-  "PenaltyDays": 4
+  "PenaltyDays": 6
 }
