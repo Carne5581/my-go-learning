@@ -1,13 +1,13 @@
 {
   "Username": "Carne5581",
-  "TotalXP": 1195,
+  "TotalXP": 1535,
   "CurrentStreak": 1,
   "LongestStreak": 5,
-  "TotalCommits": 24,
+  "TotalCommits": 25,
   "Level": 6,
   "League": "🥇 Gold",
   "CompletedTopics": 9,
-  "LastCommitDate": "2026-02-08",
+  "LastCommitDate": "2026-02-15",
   "Achievements": [
     {
       "ID": "first_commit",
@@ -31,6 +31,14 @@
       "Description": "Освоил горутины и каналы",
       "Icon": "⚡",
       "XPReward": 400,
+      "Unlocked": false
+    },
+    {
+      "ID": "level_5",
+      "Name": "Серебряный мастер",
+      "Description": "Достиг 5 уровня",
+      "Icon": "🥈",
+      "XPReward": 500,
       "Unlocked": false
     }
   ],
